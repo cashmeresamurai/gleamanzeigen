@@ -1,8 +1,9 @@
 {
+  description = "Gleamanzeigen mit Rust-Parser";
+
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    nix-gleam.url = "github:arnarg/nix-gleam";
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
@@ -11,68 +12,86 @@
       self,
       nixpkgs,
       flake-utils,
-      nix-gleam,
       rust-overlay,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [
-            nix-gleam.overlays.default
-            rust-overlay.overlays.default
-          ];
-        };
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs { inherit system overlays; };
+        rustToolchain = pkgs.rust-bin.stable.latest.default;
 
+        # Rust-Parser bauen
         rparser = pkgs.rustPlatform.buildRustPackage {
           pname = "rparser";
           version = "0.1.0";
           src = ./rparser;
-
           cargoLock = {
             lockFile = ./rparser/Cargo.lock;
-            allowBuiltinFetchGit = true;
           };
-
-          buildInputs = [ pkgs.openssl ];
-          nativeBuildInputs = [ pkgs.pkg-config ];
+          buildInputs = with pkgs; [ ];
+          nativeBuildInputs = with pkgs; [ rustToolchain ];
         };
 
-        gleam-app = pkgs.buildGleamApplication {
+        # Gleam-Projekt bauen
+        gleamPackage = pkgs.stdenv.mkDerivation {
+          pname = "gleamanzeigen";
+          version = "0.1.0";
           src = ./.;
-        };
 
+          nativeBuildInputs = with pkgs; [
+            gleam
+            erlang
+            nodejs
+          ];
+
+          buildPhase = ''
+            export HOME=$TMPDIR
+            gleam build
+          '';
+
+          installPhase = ''
+            mkdir -p $out/bin
+            cat > $out/bin/gleamanzeigen <<EOF
+            #!/bin/sh
+            # Starte den Rust-Parser im Hintergrund
+            ${rparser}/bin/rparser &
+            RPARSER_PID=\$!
+
+            # Starte die Gleam-Anwendung
+            ${pkgs.erlang}/bin/erl -pa $out/build/dev/erlang/*/ebin -eval "gleamanzeigen:main([])" -noshell -s init stop
+
+            # Beende den Rust-Parser
+            kill \$RPARSER_PID
+            EOF
+            chmod +x $out/bin/gleamanzeigen
+
+            # Kopiere die kompilierten Gleam-Dateien
+            cp -r build $out/
+          '';
+        };
       in
       {
-        packages = rec {
-          inherit rparser;
+        packages = {
+          rparser = rparser;
+          gleamanzeigen = gleamPackage;
+          default = gleamPackage;
+        };
 
-          default =
-            pkgs.runCommand "gleam-app-with-rparser"
-              {
-                nativeBuildInputs = [ pkgs.makeWrapper ];
-              }
-              ''
-                mkdir -p $out/bin
-                cp ${gleam-app}/bin/* $out/bin/
-
-                for bin in $out/bin/*; do
-                  wrapProgram "$bin" \
-                    --prefix PATH : ${pkgs.lib.makeBinPath [ rparser ]} \
-                    --run "rparser --daemonize" \
-                    --run "sleep 1"
-                done
-              '';
+        apps.default = {
+          type = "app";
+          program = "${gleamPackage}/bin/gleamanzeigen";
         };
 
         devShells.default = pkgs.mkShell {
-          packages = [
-            pkgs.gleam
-            pkgs.rustc
-            pkgs.cargo
-            rparser
+          buildInputs = with pkgs; [
+            gleam
+            erlang
+            nodejs
+            rustToolchain
+            rust-analyzer
+            cargo-flamegraph
           ];
         };
       }

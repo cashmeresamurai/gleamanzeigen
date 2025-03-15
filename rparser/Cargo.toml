@@ -1,0 +1,19 @@
+[package]
+name = "rparser"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.7"          # Web-Framework
+rayon = "1.10.0"
+serde = { version = "1.0", features = ["derive"] }  # JSON-Serialisierung
+soup = "0.5.1"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }  # Async-Runtime
+tower-http = { version = "0.5", features = ["trace"] }  # Middleware
+
+[profile.release]
+lto = true
+strip = true
+opt-level = 'z'
+panic = 'abort'
+codegen-units = 1

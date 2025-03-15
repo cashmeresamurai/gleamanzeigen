@@ -6,7 +6,7 @@ import klaz
 import parser
 import webhook
 
-pub fn main() {
+pub fn main(_args) {
   let configs = config.read_config()
 
   configs

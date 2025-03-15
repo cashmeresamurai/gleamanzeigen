@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package stringexchange;
+
+message StringMessage {
+  string content = 1;
+}
+
+service StringExchange {
+  rpc SendString (StringMessage) returns (StringMessage);
+}
