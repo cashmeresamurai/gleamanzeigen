@@ -1,1 +1,48 @@
-#+title: Readme
+#+title: Gleamanzeigen
+
+*a kleinanzeigen monitor written in gleam*
+
+gleamanzeigen is a very simple but efficient tool to monitor various products on [[https://kleinanzeigen.de]]
+
+this project started out as a small project to get more into [[https://gleam.run][gleam lang]] a static typed functional language with a familiar syntax to rust and utilizes erlang under the hood.
+
+the language itself is still pretty new and with it comes the lack of third party packages. i was still able to hack my way through, so i was able to open source a full fledged monitor.
+
+* Features
+
+- multithreaded support out of the box
+
+- very lightweight
+
+- simple way to configure the products
+
+- webhook support for discord & matrix
+
+  /support for more integrations is not a big of a deal./
+
+* Caveat
+
+i was not able to write the html parser in gleam. that's why i utilized rust for that. it's a simple http server which accepts the response.body of the gleamanzeigen client and returns the parsed title, price and url.
+
+* Getting Started
+
+** NixOS (flake)
+
+1. you can add the following code to your nixos flake
+
+   #+begin_src nix
+{
+  inputs.gleamanzeigen.url = "https://flakehub.com/f/cashmeresamurai/gleamanzeigen/0.1.8";
+
+  outputs = { self, gleamanzeigen }: {
+  };
+}
+   #+end_src
+
+2. add the package to your packages
+
+   #+begin_src nix
+environment.systemPackages = [
+
+];
+   #+end_src
