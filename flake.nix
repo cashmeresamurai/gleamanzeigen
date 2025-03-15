@@ -23,24 +23,25 @@
           overlays = [
             nix-gleam.overlays.default
             rust-overlay.overlays.default
-            (final: prev: {
-              rustToolchain = final.rust-bin.stable.latest.default;
-            })
           ];
-        };
-
-        gleam-app = pkgs.buildGleamApplication {
-          src = ./.;
         };
 
         rparser = pkgs.rustPlatform.buildRustPackage {
           pname = "rparser";
           version = "0.1.0";
-          src = ./.; # Annahme: Rust-Code liegt im Root-Verzeichnis
-          cargoLock.lockFile = ./Cargo.lock;
+          src = ./rparser;
+
+          cargoLock = {
+            lockFile = ./rparser/Cargo.lock;
+            allowBuiltinFetchGit = true;
+          };
 
           buildInputs = [ pkgs.openssl ];
           nativeBuildInputs = [ pkgs.pkg-config ];
+        };
+
+        gleam-app = pkgs.buildGleamApplication {
+          src = ./.;
         };
 
       in
@@ -49,7 +50,7 @@
           inherit rparser;
 
           default =
-            pkgs.runCommand "gleamanzeigen"
+            pkgs.runCommand "gleam-app-with-rparser"
               {
                 nativeBuildInputs = [ pkgs.makeWrapper ];
               }
@@ -61,9 +62,18 @@
                   wrapProgram "$bin" \
                     --prefix PATH : ${pkgs.lib.makeBinPath [ rparser ]} \
                     --run "rparser --daemonize" \
-                    --run "sleep 2"
+                    --run "sleep 1"
                 done
               '';
+        };
+
+        devShells.default = pkgs.mkShell {
+          packages = [
+            pkgs.gleam
+            pkgs.rustc
+            pkgs.cargo
+            rparser
+          ];
         };
       }
     );
