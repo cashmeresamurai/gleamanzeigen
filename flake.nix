@@ -1,5 +1,5 @@
 {
-  description = "Gleamanzeigen mit Rust-Parser";
+  description = "gleamanzeigen flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -22,7 +22,6 @@
         pkgs = import nixpkgs { inherit system overlays; };
         rustToolchain = pkgs.rust-bin.stable.latest.default;
 
-        # Rust-Parser bauen
         rparser = pkgs.rustPlatform.buildRustPackage {
           pname = "rparser";
           version = "0.1.0";
@@ -34,7 +33,6 @@
           nativeBuildInputs = with pkgs; [ rustToolchain ];
         };
 
-        # Gleam-Projekt bauen
         gleamPackage = pkgs.stdenv.mkDerivation {
           pname = "gleamanzeigen";
           version = "0.1.0";
@@ -55,19 +53,15 @@
             mkdir -p $out/bin
             cat > $out/bin/gleamanzeigen <<EOF
             #!/bin/sh
-            # Starte den Rust-Parser im Hintergrund
             ${rparser}/bin/rparser &
             RPARSER_PID=\$!
 
-            # Starte die Gleam-Anwendung
             ${pkgs.erlang}/bin/erl -pa $out/build/dev/erlang/*/ebin -eval "gleamanzeigen:main([])" -noshell -s init stop
 
-            # Beende den Rust-Parser
             kill \$RPARSER_PID
             EOF
             chmod +x $out/bin/gleamanzeigen
 
-            # Kopiere die kompilierten Gleam-Dateien
             cp -r build $out/
           '';
         };
