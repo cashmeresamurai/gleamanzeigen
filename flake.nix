@@ -22,6 +22,25 @@
         pkgs = import nixpkgs { inherit system overlays; };
         rustToolchain = pkgs.rust-bin.stable.latest.default;
 
+        fetchHexPackage =
+          {
+            name,
+            version,
+            sha256,
+          }:
+          pkgs.fetchurl {
+            url = "https://repo.hex.pm/tarballs/${name}-${version}.tar";
+            inherit sha256;
+          };
+
+        hexPackages = {
+          filepath = fetchHexPackage {
+            name = "filepath";
+            version = "1.1.1";
+            sha256 = "sha256-ZfUQE7z3imA6/9eZLvHMbsqWx0A460iIf2Vt5E28GQI=";
+          };
+        };
+
         rparser = pkgs.rustPlatform.buildRustPackage {
           pname = "rparser";
           version = "0.1.0";
@@ -44,8 +63,15 @@
             nodejs
           ];
 
-          buildPhase = ''
+          preBuildPhase = ''
             export HOME=$TMPDIR
+            mkdir -p $HOME/.hex/packages
+
+            mkdir -p $HOME/.hex/packages/filepath
+            ln -sf ${hexPackages.filepath} $HOME/.hex/packages/filepath/filepath.tar
+          '';
+
+          buildPhase = ''
             gleam build
           '';
 
@@ -65,11 +91,38 @@
             cp -r build $out/
           '';
         };
+
+        dockerImage = pkgs.dockerTools.buildImage {
+          name = "gleamanzeigen";
+          tag = "latest";
+
+          copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            paths = [
+              gleamPackage
+              rparser
+              pkgs.erlang
+              pkgs.bash
+              pkgs.coreutils
+            ];
+            pathsToLink = [
+              "/bin"
+              "/build"
+            ];
+          };
+
+          config = {
+            Cmd = [ "${gleamPackage}/bin/gleamanzeigen" ];
+            WorkingDir = "/";
+            created = "now";
+          };
+        };
       in
       {
         packages = {
           rparser = rparser;
           gleamanzeigen = gleamPackage;
+          docker = dockerImage;
           default = gleamPackage;
         };
 
