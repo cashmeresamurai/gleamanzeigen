@@ -50,6 +50,7 @@
           ${rparser}/bin/rparser &
           RPARSER_PID=$!
 
+          # Führe die Gleam-Anwendung direkt aus
           ${gleamApp}/bin/gleamanzeigen
 
           kill $RPARSER_PID
@@ -65,10 +66,14 @@
               gleamanzeigen
               gleamApp
               rparser
+              pkgs.erlang
               pkgs.bash
               pkgs.coreutils
             ];
-            pathsToLink = [ "/bin" ];
+            pathsToLink = [
+              "/bin"
+              "/lib"
+            ];
           };
 
           config = {
