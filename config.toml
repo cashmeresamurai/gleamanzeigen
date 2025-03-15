@@ -1,0 +1,41 @@
+[[products]]
+name = "pokemon-display"
+from = 0
+to = 10000
+private = true
+webhook = "https://matrix.sakura.pm/hookshot/webhooks/webhook/0364f2ae-8d93-44b8-b145-7748c3e47aea"
+
+[[products]]
+name = "macbook-pro-13"
+from = 50
+to = 100
+private = true
+webhook = "https://matrix.sakura.pm/hookshot/webhooks/webhook/63d5b9f8-c576-4c49-8b3c-d984b2c95722"
+
+[[products]]
+name = "blackberry-priv"
+from = 30
+to = 50
+private = true
+webhook = "https://matrix.sakura.pm/hookshot/webhooks/webhook/aad80c01-ea17-4246-8d4c-716e9c01e094"
+
+[[products]]
+name = "blackberry-key2"
+from = 50
+to = 150
+private = true
+webhook = "https://matrix.sakura.pm/hookshot/webhooks/webhook/10eac9ef-99b6-4224-8c0f-a50ffccb5cba"
+
+[[products]]
+name = "thinkpad-x220"
+from = 50
+to = 150
+private = true
+webhook = "https://matrix.sakura.pm/hookshot/webhooks/webhook/7ce68560-5017-4da0-8a1c-48e0e72d99e8"
+
+[[products]]
+name = "thinkpad-x230"
+from = 50
+to = 150
+private = true
+webhook = "https://matrix.sakura.pm/hookshot/webhooks/webhook/7c41238a-4b8e-46e5-a2ee-46d44a296ca2"
