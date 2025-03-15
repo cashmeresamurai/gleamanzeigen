@@ -5,6 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    nix-gleam.url = "github:arnarg/nix-gleam";
   };
 
   outputs =
@@ -13,33 +14,20 @@
       nixpkgs,
       flake-utils,
       rust-overlay,
+      nix-gleam,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        overlays = [ (import rust-overlay) ];
-        pkgs = import nixpkgs { inherit system overlays; };
-        rustToolchain = pkgs.rust-bin.stable.latest.default;
-
-        fetchHexPackage =
-          {
-            name,
-            version,
-            sha256,
-          }:
-          pkgs.fetchurl {
-            url = "https://repo.hex.pm/tarballs/${name}-${version}.tar";
-            inherit sha256;
-          };
-
-        hexPackages = {
-          filepath = fetchHexPackage {
-            name = "filepath";
-            version = "1.1.1";
-            sha256 = "sha256-ZfUQE7z3imA6/9eZLvHMbsqWx0A460iIf2Vt5E28GQI=";
-          };
+        overlays = [
+          (import rust-overlay)
+          nix-gleam.overlays.default
+        ];
+        pkgs = import nixpkgs {
+          inherit system overlays;
         };
+        rustToolchain = pkgs.rust-bin.stable.latest.default;
 
         rparser = pkgs.rustPlatform.buildRustPackage {
           pname = "rparser";
@@ -52,45 +40,20 @@
           nativeBuildInputs = with pkgs; [ rustToolchain ];
         };
 
-        gleamPackage = pkgs.stdenv.mkDerivation {
-          pname = "gleamanzeigen";
-          version = "0.1.0";
+        gleamApp = pkgs.buildGleamApplication {
           src = ./.;
-
-          nativeBuildInputs = with pkgs; [
-            gleam
-            erlang
-            nodejs
-          ];
-
-          preBuildPhase = ''
-            export HOME=$TMPDIR
-            mkdir -p $HOME/.hex/packages
-
-            mkdir -p $HOME/.hex/packages/filepath
-            ln -sf ${hexPackages.filepath} $HOME/.hex/packages/filepath/filepath.tar
-          '';
-
-          buildPhase = ''
-            gleam build
-          '';
-
-          installPhase = ''
-            mkdir -p $out/bin
-            cat > $out/bin/gleamanzeigen <<EOF
-            #!/bin/sh
-            ${rparser}/bin/rparser &
-            RPARSER_PID=\$!
-
-            ${pkgs.erlang}/bin/erl -pa $out/build/dev/erlang/*/ebin -eval "gleamanzeigen:main([])" -noshell -s init stop
-
-            kill \$RPARSER_PID
-            EOF
-            chmod +x $out/bin/gleamanzeigen
-
-            cp -r build $out/
-          '';
+          target = "erlang";
         };
+
+        gleamanzeigen = pkgs.writeScriptBin "gleamanzeigen" ''
+          #!/bin/sh
+          ${rparser}/bin/rparser &
+          RPARSER_PID=$!
+
+          ${gleamApp}/bin/gleamanzeigen
+
+          kill $RPARSER_PID
+        '';
 
         dockerImage = pkgs.dockerTools.buildImage {
           name = "gleamanzeigen";
@@ -99,20 +62,17 @@
           copyToRoot = pkgs.buildEnv {
             name = "image-root";
             paths = [
-              gleamPackage
+              gleamanzeigen
+              gleamApp
               rparser
-              pkgs.erlang
               pkgs.bash
               pkgs.coreutils
             ];
-            pathsToLink = [
-              "/bin"
-              "/build"
-            ];
+            pathsToLink = [ "/bin" ];
           };
 
           config = {
-            Cmd = [ "${gleamPackage}/bin/gleamanzeigen" ];
+            Cmd = [ "${gleamanzeigen}/bin/gleamanzeigen" ];
             WorkingDir = "/";
             created = "now";
           };
@@ -121,14 +81,15 @@
       {
         packages = {
           rparser = rparser;
-          gleamanzeigen = gleamPackage;
+          gleamApp = gleamApp;
+          gleamanzeigen = gleamanzeigen;
           docker = dockerImage;
-          default = gleamPackage;
+          default = gleamanzeigen;
         };
 
         apps.default = {
           type = "app";
-          program = "${gleamPackage}/bin/gleamanzeigen";
+          program = "${gleamanzeigen}/bin/gleamanzeigen";
         };
 
         devShells.default = pkgs.mkShell {
